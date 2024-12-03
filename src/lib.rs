@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
 fn read_file(name: &str) -> Vec<String> {
@@ -115,4 +115,109 @@ pub fn day2() {
     }
     println!("{}", safe_count);
     println!("{}", safe_with_one_deletion);
+}
+
+pub fn day3() {
+    enum Symbol {
+        Do,
+        Dont,
+        Mul,
+        Invalid,
+    }
+    println!("Solving day 3 problems");
+    let path = Path::new("day3.txt");
+    let file = File::open(&path).unwrap();
+    let mut reader = BufReader::new(&file);
+    let input = &mut "".to_string();
+    reader.read_to_string(input).unwrap();
+
+    for check_corrupted in [false, true] {
+        let mut itr = input.chars().peekable();
+        let mut answer: u32 = 0;
+        let mut pre_symbol = Symbol::Do;
+        let mut cur_symbol = Symbol::Invalid;
+        let mut x: u32 = 0;
+        let mut y: u32 = 0;
+        let mut cur: u32 = 0;
+
+        while let Some(c) = itr.peek() {
+            if c.is_alphabetic() {
+                let mut ident = String::new();
+                while let Some(c) = itr.peek() {
+                    if c.is_alphabetic() || c.eq(&'\'') {
+                        ident.push(*c);
+                        itr.next();
+                    } else {
+                        break;
+                    }
+                }
+                if itr.peek().is_some() && itr.peek().unwrap().eq(&'(') {
+                    match String::as_str(&ident) {
+                        "do" => {
+                            cur_symbol = Symbol::Do;
+                        }
+                        "don't" => {
+                            cur_symbol = Symbol::Dont;
+                        }
+                        "mul" => {
+                            cur_symbol = Symbol::Mul;
+                        }
+                        _ => {
+                            cur_symbol = Symbol::Invalid;
+                        }
+                    }
+                }
+            } else if c.is_numeric() {
+                while let Some(c) = itr.peek() {
+                    if c.is_numeric() {
+                        cur = cur * 10 + c.to_digit(10).unwrap();
+                        itr.next();
+                    } else {
+                        break;
+                    }
+                }
+                if itr.peek().is_some() {
+                    if itr.peek().unwrap().eq(&',') {
+                        x = cur;
+                    } else if itr.peek().unwrap().eq(&')') {
+                        y = cur;
+                    } else {
+                        cur_symbol = Symbol::Invalid;
+                    }
+                } else {
+                    cur_symbol = Symbol::Invalid;
+                }
+                cur = 0;
+            } else if c.eq(&')') {
+                itr.next();
+                match cur_symbol {
+                    Symbol::Mul => {
+                        if check_corrupted {
+                            match pre_symbol {
+                                Symbol::Do => {
+                                    answer += x * y;
+                                    //println!("{} {} {}", x, y, answer);
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            answer += x * y;
+                        }
+                    }
+                    Symbol::Dont => {
+                        pre_symbol = cur_symbol;
+                    }
+                    Symbol::Do => {
+                        pre_symbol = cur_symbol;
+                    }
+                    _ => {}
+                }
+                cur_symbol = Symbol::Invalid;
+            } else {
+                itr.next();
+            }
+        }
+
+        println!("Check corrupted={},answer={}", check_corrupted, answer);
+    }
 }
