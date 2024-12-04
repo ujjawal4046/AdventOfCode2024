@@ -46,8 +46,8 @@ pub fn day1() {
             }
         }
     }
-    println!("{}", dist);
-    println!("{}", similarty);
+    println!("Part 1 - {}", dist);
+    println!("Part 2 - {}", similarty);
 }
 
 fn is_safe_report(report: &Vec<i32>) -> bool {
@@ -113,8 +113,8 @@ pub fn day2() {
             safe_with_one_deletion += 1;
         }
     }
-    println!("{}", safe_count);
-    println!("{}", safe_with_one_deletion);
+    println!("Part 1 - {}", safe_count);
+    println!("Part 2 - {}", safe_with_one_deletion);
 }
 
 pub fn day3() {
@@ -220,4 +220,104 @@ pub fn day3() {
 
         println!("Check corrupted={},answer={}", check_corrupted, answer);
     }
+}
+
+fn check_xmas(arr: &Vec<Vec<char>>, x: i32, y: i32, x_len: usize, y_len: usize) -> i32 {
+    let mut ans = 0;
+    let xd = [-1, 1, 0, 0, -1, 1, -1, 1];
+    let yd = [0, 0, -1, 1, -1, 1, 1, -1];
+    for i in 0..8 {
+        let mut sat = true;
+        for j in 0..4 {
+            let x_ = x + xd[i] * j;
+            let y_ = y + yd[i] * j;
+            if x_ >= 0 && x_ < x_len.try_into().unwrap() && y_ >= 0 && y_ < y_len.try_into().unwrap() {
+                let (xdix, ydix) = (x_ as usize, y_ as usize);
+                match j {
+                    0 => {
+                        if !arr[xdix][ydix].eq(&'X') {
+                            sat = false;
+                        }
+                    }
+                    1 => {
+                        if !arr[xdix][ydix].eq(&'M') {
+                            sat = false;
+                        }
+                    }
+                    2 => {
+                        if !arr[xdix][ydix].eq(&'A') {
+                            sat = false;
+                        }
+                    }
+                    3 => {
+                        if !arr[xdix][ydix].eq(&'S') {
+                            sat = false;
+                        }
+                    }
+                    _ => {}
+                }
+            } else {
+                sat = false;
+            }
+            if !sat {
+                break;
+            }
+        }
+        if sat {
+            //println!("{} {} {}", x, y, i);
+            ans += 1;
+        }
+    }
+    ans
+}
+
+fn check_mas_in_x_shape(arr: &Vec<Vec<char>>, x: i32, y: i32, x_len: usize, y_len: usize) -> bool {
+    let xd = [-1, -1, 1, 1];
+    let yd = [-1, 1, -1, 1];
+    let m = &'M';
+    let s = &'S';
+    for i in  0..4{
+        let x_ = x + xd[i] ;
+        let y_ = y + yd[i];
+        if x_ < 0 || x_ >=  x_len.try_into().unwrap() || y_ <  0 || y_ >=  y_len.try_into().unwrap() {
+            return false;
+        }
+    }
+    let xidx = [(x + xd[0]) as usize, (x + xd[1]) as usize, (x + xd[2]) as usize, (x + xd[3]) as usize];
+    let yidx = [(y + yd[0]) as usize, (y + yd[1]) as usize, (y + yd[2]) as usize, (y + yd[3]) as usize];
+    if (arr[xidx[0]][yidx[0]].eq(m) && arr[xidx[1]][yidx[1]].eq(m) && arr[xidx[2]][yidx[2]].eq(s) && arr[xidx[3]][yidx[3]].eq(s)) ||
+        (arr[xidx[0]][yidx[0]].eq(s) && arr[xidx[1]][yidx[1]].eq(s) && arr[xidx[2]][yidx[2]].eq(m) && arr[xidx[3]][yidx[3]].eq(m)) ||
+        (arr[xidx[0]][yidx[0]].eq(m) && arr[xidx[1]][yidx[1]].eq(s) && arr[xidx[2]][yidx[2]].eq(m) && arr[xidx[3]][yidx[3]].eq(s)) ||
+        (arr[xidx[0]][yidx[0]].eq(s) && arr[xidx[1]][yidx[1]].eq(m) && arr[xidx[2]][yidx[2]].eq(s) && arr[xidx[3]][yidx[3]].eq(m)) {
+        return true;
+    }
+    return false;
+}
+
+pub fn day4() {
+    println!("Solving day 4 problems");
+    let mut arr = vec![];
+    for line in read_file("day4.txt") {
+        let mut l = vec![];
+        for c in line.chars() {
+            l.push(c);
+        }
+        arr.push(l);
+    }
+    let n = arr.len().try_into().unwrap();
+    let m = arr[0].len().try_into().unwrap();
+    let (mut ans1, mut ans2) = (0, 0);
+    for i in 0..n {
+        for j in 0..m {
+            if arr[i][j].eq(&'X') {
+                ans1 += check_xmas(&arr, i.try_into().unwrap(), j.try_into().unwrap(), n, m);
+            } else if arr[i][j].eq(&'A')
+                && check_mas_in_x_shape(&arr, i.try_into().unwrap(), j.try_into().unwrap(), n, m)
+            {
+                ans2 += 1;
+            }
+        }
+    }
+    println!("Part 1 - {}", ans1);
+    println!("Part 2 - {}", ans2);
 }
