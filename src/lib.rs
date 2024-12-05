@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -231,7 +231,11 @@ fn check_xmas(arr: &Vec<Vec<char>>, x: i32, y: i32, x_len: usize, y_len: usize) 
         for j in 0..4 {
             let x_ = x + xd[i] * j;
             let y_ = y + yd[i] * j;
-            if x_ >= 0 && x_ < x_len.try_into().unwrap() && y_ >= 0 && y_ < y_len.try_into().unwrap() {
+            if x_ >= 0
+                && x_ < x_len.try_into().unwrap()
+                && y_ >= 0
+                && y_ < y_len.try_into().unwrap()
+            {
                 let (xdix, ydix) = (x_ as usize, y_ as usize);
                 match j {
                     0 => {
@@ -276,19 +280,42 @@ fn check_mas_in_x_shape(arr: &Vec<Vec<char>>, x: i32, y: i32, x_len: usize, y_le
     let yd = [-1, 1, -1, 1];
     let m = &'M';
     let s = &'S';
-    for i in  0..4{
-        let x_ = x + xd[i] ;
+    for i in 0..4 {
+        let x_ = x + xd[i];
         let y_ = y + yd[i];
-        if x_ < 0 || x_ >=  x_len.try_into().unwrap() || y_ <  0 || y_ >=  y_len.try_into().unwrap() {
+        if x_ < 0 || x_ >= x_len.try_into().unwrap() || y_ < 0 || y_ >= y_len.try_into().unwrap() {
             return false;
         }
     }
-    let xidx = [(x + xd[0]) as usize, (x + xd[1]) as usize, (x + xd[2]) as usize, (x + xd[3]) as usize];
-    let yidx = [(y + yd[0]) as usize, (y + yd[1]) as usize, (y + yd[2]) as usize, (y + yd[3]) as usize];
-    if (arr[xidx[0]][yidx[0]].eq(m) && arr[xidx[1]][yidx[1]].eq(m) && arr[xidx[2]][yidx[2]].eq(s) && arr[xidx[3]][yidx[3]].eq(s)) ||
-        (arr[xidx[0]][yidx[0]].eq(s) && arr[xidx[1]][yidx[1]].eq(s) && arr[xidx[2]][yidx[2]].eq(m) && arr[xidx[3]][yidx[3]].eq(m)) ||
-        (arr[xidx[0]][yidx[0]].eq(m) && arr[xidx[1]][yidx[1]].eq(s) && arr[xidx[2]][yidx[2]].eq(m) && arr[xidx[3]][yidx[3]].eq(s)) ||
-        (arr[xidx[0]][yidx[0]].eq(s) && arr[xidx[1]][yidx[1]].eq(m) && arr[xidx[2]][yidx[2]].eq(s) && arr[xidx[3]][yidx[3]].eq(m)) {
+    let xidx = [
+        (x + xd[0]) as usize,
+        (x + xd[1]) as usize,
+        (x + xd[2]) as usize,
+        (x + xd[3]) as usize,
+    ];
+    let yidx = [
+        (y + yd[0]) as usize,
+        (y + yd[1]) as usize,
+        (y + yd[2]) as usize,
+        (y + yd[3]) as usize,
+    ];
+    if (arr[xidx[0]][yidx[0]].eq(m)
+        && arr[xidx[1]][yidx[1]].eq(m)
+        && arr[xidx[2]][yidx[2]].eq(s)
+        && arr[xidx[3]][yidx[3]].eq(s))
+        || (arr[xidx[0]][yidx[0]].eq(s)
+            && arr[xidx[1]][yidx[1]].eq(s)
+            && arr[xidx[2]][yidx[2]].eq(m)
+            && arr[xidx[3]][yidx[3]].eq(m))
+        || (arr[xidx[0]][yidx[0]].eq(m)
+            && arr[xidx[1]][yidx[1]].eq(s)
+            && arr[xidx[2]][yidx[2]].eq(m)
+            && arr[xidx[3]][yidx[3]].eq(s))
+        || (arr[xidx[0]][yidx[0]].eq(s)
+            && arr[xidx[1]][yidx[1]].eq(m)
+            && arr[xidx[2]][yidx[2]].eq(s)
+            && arr[xidx[3]][yidx[3]].eq(m))
+    {
         return true;
     }
     return false;
@@ -320,4 +347,98 @@ pub fn day4() {
     }
     println!("Part 1 - {}", ans1);
     println!("Part 2 - {}", ans2);
+}
+
+pub fn day5() {
+    println!("Solving day 5 problems");
+    let mut adj_list: HashMap<i32, HashSet<i32>> = HashMap::new();
+    let mut queries: Vec<Vec<i32>> = vec![];
+    for line in read_file("day5.txt") {
+        if line.contains("|") {
+            let v: Vec<&str> = line.split("|").collect();
+            let x = v[0].parse::<i32>().unwrap();
+            let y = v[1].parse::<i32>().unwrap();
+            match adj_list.get_mut(&x) {
+                Some(set) => {
+                    set.insert(y);
+                }
+                None => {
+                    adj_list.insert(x, HashSet::from([y]));
+                }
+            }
+        } else if line.contains(",") {
+            let v: Vec<i32> = line.split(",").map(|x| x.parse::<i32>().unwrap()).collect();
+            queries.push(v);
+        }
+    }
+    let mut ans_safe = 0;
+    let mut ans_reordered_safe = 0;
+    let mut safe;
+    for query in &queries {
+        //println!("{:?}", query);
+        let l = query.len();
+        safe = true;
+        for i in 0..l {
+            for j in i + 1..l {
+                if adj_list.get(&query[j]).is_some()
+                    && adj_list.get(&query[j]).unwrap().contains(&query[i])
+                {
+                    safe = false;
+                }
+                if !safe {
+                    break;
+                }
+            }
+            if !safe {
+                break;
+            }
+        }
+        if safe {
+            let middle = query[l / 2];
+            ans_safe = ans_safe + middle;
+            //println!("{:?}", middle);
+        } else {
+            let mut adj_list_q: HashMap<&i32, &HashSet<i32>> = HashMap::new();
+            for v in query {
+                if adj_list.get(v).is_some() {
+                    adj_list_q.insert(v, adj_list.get(v).unwrap());
+                }
+            }
+            let ordered_q = topological_sort(&adj_list_q, &query);
+            //println!("{:?}", ordered_q);
+            ans_reordered_safe = ans_reordered_safe + ordered_q[l / 2];
+        }
+    }
+    //println!("{} {}", queries.len(), safe_queries);
+    println!("Part 1 - {}", ans_safe);
+    println!("Part 2 - {}", ans_reordered_safe);
+}
+
+fn topological_sort(adj_ist: &HashMap<&i32, &HashSet<i32>>, nodes: &Vec<i32>) -> Vec<i32> {
+    let mut visited: HashSet<i32> = HashSet::new();
+    let mut order = vec![];
+    let node_set = HashSet::from_iter(nodes);
+    for v in nodes {
+        if visited.get(v).is_none() {
+            dfs(adj_ist, v, &mut order, &mut visited, &node_set);
+        }
+    }
+    order.reverse();
+    order
+}
+
+fn dfs(
+    adj_list: &HashMap<&i32, &HashSet<i32>>,
+    v: &i32,
+    order: &mut Vec<i32>,
+    visited: &mut HashSet<i32>,
+    node_set: &HashSet<&i32>,
+) {
+    visited.insert(*v);
+    for u in adj_list.get(v).unwrap().iter() {
+        if node_set.contains(u) && !visited.contains(u) {
+            dfs(adj_list, u, order, visited, node_set);
+        }
+    }
+    order.push(*v);
 }
