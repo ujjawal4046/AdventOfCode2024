@@ -349,6 +349,35 @@ pub fn day4() {
     println!("Part 2 - {}", ans2);
 }
 
+fn topological_sort(adj_ist: &HashMap<&i32, &HashSet<i32>>, nodes: &Vec<i32>) -> Vec<i32> {
+    let mut visited: HashSet<i32> = HashSet::new();
+    let mut order = vec![];
+    let node_set = HashSet::from_iter(nodes);
+    for v in nodes {
+        if visited.get(v).is_none() {
+            dfs(adj_ist, v, &mut order, &mut visited, &node_set);
+        }
+    }
+    order.reverse();
+    order
+}
+
+fn dfs(
+    adj_list: &HashMap<&i32, &HashSet<i32>>,
+    v: &i32,
+    order: &mut Vec<i32>,
+    visited: &mut HashSet<i32>,
+    node_set: &HashSet<&i32>,
+) {
+    visited.insert(*v);
+    for u in adj_list.get(v).unwrap().iter() {
+        if node_set.contains(u) && !visited.contains(u) {
+            dfs(adj_list, u, order, visited, node_set);
+        }
+    }
+    order.push(*v);
+}
+
 pub fn day5() {
     println!("Solving day 5 problems");
     let mut adj_list: HashMap<i32, HashSet<i32>> = HashMap::new();
@@ -414,31 +443,122 @@ pub fn day5() {
     println!("Part 2 - {}", ans_reordered_safe);
 }
 
-fn topological_sort(adj_ist: &HashMap<&i32, &HashSet<i32>>, nodes: &Vec<i32>) -> Vec<i32> {
-    let mut visited: HashSet<i32> = HashSet::new();
-    let mut order = vec![];
-    let node_set = HashSet::from_iter(nodes);
-    for v in nodes {
-        if visited.get(v).is_none() {
-            dfs(adj_ist, v, &mut order, &mut visited, &node_set);
-        }
-    }
-    order.reverse();
-    order
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
+enum Direction {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
 }
 
-fn dfs(
-    adj_list: &HashMap<&i32, &HashSet<i32>>,
-    v: &i32,
-    order: &mut Vec<i32>,
-    visited: &mut HashSet<i32>,
-    node_set: &HashSet<&i32>,
-) {
-    visited.insert(*v);
-    for u in adj_list.get(v).unwrap().iter() {
-        if node_set.contains(u) && !visited.contains(u) {
-            dfs(adj_list, u, order, visited, node_set);
+fn get_next_step(cur_dir: &Direction, x: &i32, y: &i32) -> (i32, i32) {
+    let (mut x_, mut y_) = (*x, *y);
+    match cur_dir {
+        Direction::UP => {
+            x_ = x - 1;
+        }
+        Direction::DOWN => {
+            x_ = x + 1;
+        }
+        Direction::LEFT => {
+            y_ = y - 1;
+        }
+        Direction::RIGHT => {
+            y_ = y + 1;
         }
     }
-    order.push(*v);
+    (x_, y_)
+}
+
+fn turn_direction(cur_dir: &Direction) -> Direction {
+    match cur_dir {
+        Direction::UP => {
+            return Direction::RIGHT;
+        }
+        Direction::DOWN => {
+            return Direction::LEFT;
+        }
+        Direction::LEFT => {
+            return Direction::UP;
+        }
+        Direction::RIGHT => {
+            return Direction::DOWN;
+        }
+    }
+}
+
+fn count_distance_to_exit(
+    arr: &Vec<Vec<char>>,
+    sx: &i32,
+    sy: &i32,
+    obst: &Option<(usize, usize)>,
+) -> Option<usize> {
+    let n: i32 = arr.len().try_into().unwrap();
+    let m: i32 = arr[0].len().try_into().unwrap();
+    let (mut x, mut y) = (*sx, *sy);
+    let mut cur_dir = Direction::UP;
+    let mut unique_dir: HashSet<(i32, i32, Direction)> = HashSet::from([(x, y, cur_dir)]);
+    loop {
+        //println!("{} {} {:?}", x, y, cur_dir);
+        let (x_, y_) = get_next_step(&cur_dir, &x, &y);
+        let (xs, ys) = (x_ as usize, y_ as usize);
+        if x_ < 0 || x_ >= n || y_ < 0 || y_ >= m {
+            break;
+        }
+        if obst.is_some() && obst.unwrap().eq(&(xs, ys)) || arr[xs][ys].eq(&'#') {
+            cur_dir = turn_direction(&cur_dir);
+        } else {
+            (x, y) = (x_, y_);
+            if obst.is_some() {
+                if unique_dir.contains(&(x, y, cur_dir)) {
+                    return None;
+                }
+                unique_dir.insert((x, y, cur_dir));
+            } else {
+                unique_dir.insert((x, y, Direction::UP));
+            }
+        }
+    }
+    Some(unique_dir.len())
+}
+pub fn day6() {
+    println!("Solving day 6 problems");
+    let mut arr = vec![];
+    let (mut sx, mut sy) = (0, 0);
+    let (mut i, mut j) = (0, 0);
+    for line in read_file("day6.txt") {
+        let mut l = vec![];
+        for c in line.chars() {
+            l.push(c);
+            if c.eq(&'^') {
+                (sx, sy) = (i, j);
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+        j = 0;
+        arr.push(l);
+    }
+    println!(
+        "Part 1 - {}",
+        count_distance_to_exit(&arr, &sx, &sy, &None).unwrap()
+    );
+
+    //Optimise complexity, runs for almost 2 minutes so commented out
+    /*
+    let n = arr.len();
+    let m = arr[0].len();
+    let mut obstruction = 0;
+    for i in 0..n {
+        for j in 0..m {
+            if !arr[i][j].eq(&'#') && !arr[i][j].eq(&'^') {
+                if count_distance_to_exit(&arr, &sx, &sy, &Some((i, j))).is_none() {
+                    //println!("{} {}", i, j);
+                    obstruction = obstruction + 1;
+                }
+            }
+        }
+    }
+    println!("Part 2 - {}", obstruction);
+    */
 }
