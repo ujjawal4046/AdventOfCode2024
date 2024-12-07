@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
+use std::str::FromStr;
 
 fn read_file(name: &str) -> Vec<String> {
     let path = Path::new(name);
@@ -561,4 +562,78 @@ pub fn day6() {
     }
     println!("Part 2 - {}", obstruction);
     */
+}
+
+enum Operator {
+    SUM,
+    MULTIPLY,
+    CONCATENATION,
+}
+fn check_possible_combination(
+    result: &u64,
+    values: &Vec<u64>,
+    cur_val: u64,
+    cur_idx: usize,
+    operator: Operator,
+    use_concatenation: bool,
+) -> bool {
+    if cur_idx >= values.len() {
+        return cur_val == *result;
+    }
+    let next_value;
+    match operator {
+        Operator::SUM => {
+            next_value = cur_val + values[cur_idx];
+        }
+        Operator::MULTIPLY => {
+            next_value = cur_val * values[cur_idx];
+        }
+        Operator::CONCATENATION => {
+            if use_concatenation {
+                next_value =
+                    u64::from_str(&*(cur_val.to_string() + &values[cur_idx].to_string())).unwrap();
+            } else {
+                next_value = 0;
+            }
+        }
+    }
+    let check_operators: Vec<Operator>;
+    if use_concatenation {
+        check_operators = Vec::from([Operator::SUM, Operator::MULTIPLY, Operator::CONCATENATION]);
+    } else {
+        check_operators = Vec::from([Operator::SUM, Operator::MULTIPLY]);
+    }
+    for op in check_operators {
+        if check_possible_combination(
+            result,
+            values,
+            next_value.clone(),
+            cur_idx + 1,
+            op,
+            use_concatenation,
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn day7() {
+    println!("Solving day 7 problems");
+    let mut part1_ans: u64 = 0;
+    let mut part2_ans: u64 = 0;
+    for line in read_file("day7.txt") {
+        let v: Vec<&str> = line.split_whitespace().collect();
+        let result = u64::from_str(v[0].split(":").take(1).next().unwrap()).unwrap();
+        let values: Vec<u64> = v[1..].iter().map(|x| u64::from_str(x).unwrap()).collect();
+        //println!("{} {:?}", sum, values);
+        if check_possible_combination(&result, &values, 0, 0, Operator::SUM, false) {
+            part1_ans = part1_ans + result;
+        }
+        if check_possible_combination(&result, &values, 0, 0, Operator::SUM, true) {
+            part2_ans = part2_ans + result;
+        }
+    }
+    println!("Part 1 - {}", part1_ans);
+    println!("Part 2 - {}", part2_ans);
 }
