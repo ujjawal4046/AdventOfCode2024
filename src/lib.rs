@@ -546,7 +546,6 @@ pub fn day6() {
     );
 
     //Optimise complexity, runs for almost 2 minutes so commented out
-    /*
     let n = arr.len();
     let m = arr[0].len();
     let mut obstruction = 0;
@@ -561,7 +560,6 @@ pub fn day6() {
         }
     }
     println!("Part 2 - {}", obstruction);
-    */
 }
 
 enum Operator {

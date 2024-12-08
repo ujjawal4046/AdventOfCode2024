@@ -1,10 +1,47 @@
+use advent_of_code2024::*;
+use std::env;
+use std::time::Instant;
+
+fn run_for_day(day_no: i32) {
+    match day_no {
+        1 => {
+            run_measured(day1);
+        }
+        2 => {
+            run_measured(day2);
+        }
+        3 => {
+            run_measured(day3);
+        }
+        4 => {
+            run_measured(day4);
+        }
+        5 => {
+            run_measured(day5);
+        }
+        6 => {
+            run_measured(day6);
+        }
+        7 => {
+            run_measured(day7);
+        }
+        8 => {
+            run_measured(day8);
+        }
+        _ => {
+            println!("Day {} is far or I don't know how to solve :)", { day_no });
+        }
+    }
+}
+
+fn run_measured(f: fn()) {
+    let before = Instant::now();
+    f();
+    println!("Elapsed time: {:.2?}", before.elapsed());
+}
+
 fn main() {
-    advent_of_code2024::day1();
-    advent_of_code2024::day2();
-    advent_of_code2024::day3();
-    advent_of_code2024::day4();
-    advent_of_code2024::day5();
-    advent_of_code2024::day6();
-    advent_of_code2024::day7();
-    advent_of_code2024::day8();
+    let args: Vec<String> = env::args().collect();
+    let day_no = args[1].parse().unwrap();
+    run_for_day(day_no);
 }
