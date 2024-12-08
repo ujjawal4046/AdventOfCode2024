@@ -6,4 +6,5 @@ fn main() {
     advent_of_code2024::day5();
     advent_of_code2024::day6();
     advent_of_code2024::day7();
+    advent_of_code2024::day8();
 }

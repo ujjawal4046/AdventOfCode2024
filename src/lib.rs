@@ -637,3 +637,60 @@ pub fn day7() {
     println!("Part 1 - {}", part1_ans);
     println!("Part 2 - {}", part2_ans);
 }
+
+pub fn day8() {
+    println!("Solving day 8 problems");
+    let mut m = 0;
+    let mut n = 0;
+    let mut antenna_map: HashMap<char, Vec<(i32, i32)>> = HashMap::new();
+    for line in read_file("day8.txt") {
+        m = 0;
+        for c in line.chars() {
+            if !c.eq(&'.') {
+                match antenna_map.get_mut(&c) {
+                    Some(set) => {
+                        set.push((n, m));
+                    }
+                    None => {
+                        antenna_map.insert(c, vec![(n, m)]);
+                    }
+                }
+            }
+            m = m + 1;
+        }
+        n = n + 1;
+    }
+    //println!("{} {}", m, n);
+    let mut uniq_antinodes_part1: HashSet<(i32, i32)> = HashSet::new();
+    let mut uniq_antinodes_part2: HashSet<(i32, i32)> = HashSet::new();
+    for c in antenna_map.keys() {
+        let arr = antenna_map.get(c).unwrap();
+        //println!("{} - {:?}", c, arr);
+        let l = arr.len();
+        for i in 0..l {
+            for j in i + 1..l {
+                let (d1, d2) = (arr[i].0 - arr[j].0, arr[i].1 - arr[j].1);
+                let (mut x1, mut y1) = (arr[i].0 + d1, arr[i].1 + d2);
+                let (mut x2, mut y2) = (arr[j].0 - d1, arr[j].1 - d2);
+                uniq_antinodes_part2.insert((arr[i].0, arr[i].1));
+                uniq_antinodes_part2.insert((arr[j].0, arr[j].1));
+                if x1 >= 0 && x1 < n && y1 >= 0 && y1 < m {
+                    uniq_antinodes_part1.insert((x1, y1));
+                }
+                if x2 >= 0 && x2 < n && y2 >= 0 && y2 < m {
+                    uniq_antinodes_part1.insert((x2, y2));
+                }
+                while x1 >= 0 && x1 < n && y1 >= 0 && y1 < m {
+                    uniq_antinodes_part2.insert((x1, y1));
+                    (x1, y1) = (x1 + d1, y1 + d2);
+                }
+                while x2 >= 0 && x2 < n && y2 >= 0 && y2 < m {
+                    uniq_antinodes_part2.insert((x2, y2));
+                    (x2, y2) = (x2 - d1, y2 - d2);
+                }
+            }
+        }
+    }
+    println!("Part 1 - {}", uniq_antinodes_part1.len());
+    println!("Part 2 - {}", uniq_antinodes_part2.len());
+}
