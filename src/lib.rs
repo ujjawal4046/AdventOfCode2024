@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -691,4 +692,183 @@ pub fn day8() {
     }
     println!("Part 1 - {}", uniq_antinodes_part1.len());
     println!("Part 2 - {}", uniq_antinodes_part2.len());
+}
+
+fn move_file_one_block(
+    mut occupied_block: Vec<(u32, u32, u32)>,
+    mut free_block: Vec<(u32, u32)>,
+) -> u64 {
+    let mut free_idx: usize = 0;
+    let mut reversed_occ_idx: i32 = (occupied_block.len() - 1) as i32;
+    let mut checksum: u64 = 0;
+    let mut moved_space = 0;
+    loop {
+        while reversed_occ_idx >= 0 && occupied_block[reversed_occ_idx as usize].2 == 0 {
+            reversed_occ_idx = reversed_occ_idx - 1;
+        }
+        if reversed_occ_idx < 0 {
+            break;
+        }
+        let (occ_id, occ_offset, occ_len) = occupied_block[reversed_occ_idx as usize];
+        while free_idx < free_block.len() && free_block[free_idx].1 == 0 {
+            free_idx = free_idx + 1;
+        }
+        if free_idx >= free_block.len() {
+            break;
+        }
+        let (free_offset, free_len) = free_block[free_idx];
+        //Free block is after the last file block
+        if occ_offset < free_offset {
+            break;
+        }
+        let deduction = min(free_len, occ_len);
+        moved_space = moved_space + deduction;
+        free_block[free_idx].0 = free_offset + deduction;
+        free_block[free_idx].1 = free_len - deduction;
+        let adder = (occ_id * (((2 * free_offset + deduction - 1) * deduction) / 2)) as u64;
+        //println!("adder - {}", adder);
+        checksum = checksum + adder;
+        //println!("Current checksum - {}", checksum);
+        occupied_block[reversed_occ_idx as usize].2 = occ_len - deduction;
+        /*
+        println!(
+            "occupied block - {:?}",
+            occupied_block[reversed_occ_idx as usize]
+        );
+         */
+        //println!("free block - {:?}", free_block[free_idx]);
+    }
+    //println!("{} {}", reversed_occ_idx, free_idx);
+    //println!("moved space {}", moved_space);
+    for idx in 0..reversed_occ_idx + 1 {
+        let (occ_id, occ_offset, occ_len) = occupied_block[idx as usize];
+        //println!("occupied block - {:?}", occupied_block[idx as usize]);
+        if occ_len > 0 {
+            let adder = (occ_id * (((2 * occ_offset + occ_len - 1) * occ_len) / 2)) as u64;
+            //println!("adder - {}", adder);
+            checksum = checksum + adder;
+        }
+        //println!("Current checksum - {}", checksum);
+    }
+    checksum
+}
+
+fn move_file_total(
+    mut occupied_block: Vec<(u32, u32, u32)>,
+    mut free_block: Vec<(u32, u32)>,
+) -> u64 {
+    let mut free_idx: usize;
+    let mut reversed_occ_idx: i32;
+    let mut checksum: u64 = 0;
+    let mut moved_space = 0;
+    reversed_occ_idx = (occupied_block.len() - 1) as i32;
+    loop {
+        //println!("occupied block {:?}", occupied_block);
+        //println!("free block {:?}", free_block);
+        let (free_offset, free_len);
+        free_idx = 0;
+        while reversed_occ_idx >= 0 && occupied_block[reversed_occ_idx as usize].2 == 0 {
+            reversed_occ_idx = reversed_occ_idx - 1;
+        }
+        if reversed_occ_idx < 0 {
+            break;
+        }
+        while free_idx < free_block.len()
+            && (free_block[free_idx].1 == 0
+                || free_block[free_idx].1 < occupied_block[reversed_occ_idx as usize].2)
+        {
+            free_idx = free_idx + 1;
+        }
+        if reversed_occ_idx < 0 {
+            break;
+        }
+        if free_idx >= free_block.len() {
+            reversed_occ_idx = reversed_occ_idx - 1;
+            continue;
+        }
+        (free_offset, free_len) = free_block[free_idx];
+        let (occ_id, occ_offset, occ_len) = occupied_block[reversed_occ_idx as usize];
+        if occ_offset <= free_offset {
+            reversed_occ_idx = reversed_occ_idx - 1;
+            continue;
+        }
+        let deduction = occ_len;
+        moved_space = moved_space + deduction;
+        free_block[free_idx].0 = free_offset + deduction;
+        free_block[free_idx].1 = free_len - deduction;
+        if free_block[free_idx].1 == 0 {
+            free_block.remove(free_idx);
+        }
+        let adder = (occ_id * (((2 * free_offset + deduction - 1) * deduction) / 2)) as u64;
+        //println!("adder - {}", adder);
+        checksum = checksum + adder;
+        //println!("Current checksum - {}", checksum);
+        occupied_block[reversed_occ_idx as usize].2 = 0;
+        let mut free_insert_idx = 0;
+        while free_insert_idx < free_block.len() && occ_offset >= free_block[free_insert_idx].0 {
+            free_insert_idx = free_insert_idx + 1;
+        }
+        let (mut new_offset, mut new_len) = (occ_offset, occ_len);
+        //check if previous free block can be combined
+        if free_insert_idx > 0
+            && free_block[free_insert_idx - 1].0 + free_block[free_insert_idx - 1].1 == occ_offset
+        {
+            let pre_idx = free_insert_idx - 1;
+            new_offset = free_block[pre_idx].0;
+            new_len = occ_len + free_block[pre_idx].1;
+            free_insert_idx = free_insert_idx - 1;
+            free_block.remove(pre_idx);
+        }
+        //check if next free block can be combined
+        if free_insert_idx < free_block.len()
+            && free_block[free_insert_idx].0 == new_offset + new_len
+        {
+            free_block[free_insert_idx] = (new_offset, free_block[free_insert_idx].1 + new_len);
+        } else {
+            free_block.insert(free_insert_idx, (occ_offset, occ_len));
+        }
+    }
+    //println!("occupied block {:?}", occupied_block);
+    //println!("free block {:?}", free_block);
+    //println!("{} {}", reversed_occ_idx, free_idx);
+    //println!("moved space {}", moved_space);
+    for idx in 0..occupied_block.len() {
+        let (occ_id, occ_offset, occ_len) = occupied_block[idx as usize];
+        //println!("occupied block - {:?}", occupied_block[idx as usize]);
+        if occ_len > 0 {
+            let adder = (occ_id * (((2 * occ_offset + occ_len - 1) * occ_len) / 2)) as u64;
+            //println!("adder - {}", adder);
+            checksum = checksum + adder;
+        }
+        //println!("Current checksum - {}", checksum);
+    }
+    checksum
+}
+pub fn day9() {
+    //(identifier, offset, len)
+    let mut occupied_block: Vec<(u32, u32, u32)> = vec![];
+    //(offset, len)
+    let mut free_block: Vec<(u32, u32)> = vec![];
+    let mut offset = 0;
+    let mut identifier: u32 = 0;
+    let representation: Vec<u32> = read_file("day9.txt")
+        .get(0)
+        .unwrap()
+        .chars()
+        .map(|x| x.to_digit(10).unwrap())
+        .collect();
+    for d in (0..representation.len()).step_by(2) {
+        occupied_block.push((identifier, offset, representation[d]));
+        offset = offset + representation[d];
+        if d + 1 < representation.len() {
+            free_block.push((offset, representation[d + 1]));
+            offset = offset + representation[d + 1];
+        }
+        identifier = identifier + 1;
+    }
+    println!(
+        "Part 1 - {}",
+        move_file_one_block(occupied_block.clone(), free_block.clone())
+    );
+    println!("Part 2 - {}", move_file_total(occupied_block, free_block));
 }
