@@ -31,6 +31,9 @@ fn run_for_day(day_no: i32) {
         9 => {
             run_measured(day9);
         }
+        10 => {
+            run_measured(day10);
+        }
         _ => {
             println!("Day {} is far or I don't know how to solve :)", { day_no });
         }

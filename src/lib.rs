@@ -1,5 +1,5 @@
 use std::cmp::min;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -871,4 +871,47 @@ pub fn day9() {
         move_file_one_block(occupied_block.clone(), free_block.clone())
     );
     println!("Part 2 - {}", move_file_total(occupied_block, free_block));
+}
+
+pub fn day10() {
+    let mut arr: Vec<Vec<u32>> = vec![];
+    for line in read_file("day10.txt") {
+        let v: Vec<u32> = line.chars().map(|x| x.to_digit(10).unwrap()).collect();
+        arr.push(v);
+    }
+    let (n, m) = (arr.len() as i32, arr[0].len() as i32);
+    let xd = [-1, 1, 0, 0];
+    let yd = [0, 0, -1, 1];
+    let mut part1_total_trailheads: u32 = 0;
+    let mut part2_total_unique_trails = 0;
+    for i in 0..n {
+        for j in 0..m {
+            if arr[i as usize][j as usize] == 0 {
+                let mut v: VecDeque<(i32, i32, u32)> = VecDeque::new();
+                v.push_back((i, j, 0));
+                let mut unique_trails: HashSet<(i32, i32)> = HashSet::new();
+                while !v.is_empty() {
+                    let (x, y, c) = v.pop_front().unwrap();
+                    if c == 9 {
+                        unique_trails.insert((x, y));
+                        part2_total_unique_trails = part2_total_unique_trails + 1;
+                    }
+                    for k in 0..4 {
+                        let (x_, y_) = (x + xd[k], y + yd[k]);
+                        if x_ >= 0
+                            && x_ < n
+                            && y_ >= 0
+                            && y_ < m
+                            && arr[x_ as usize][y_ as usize] == c + 1
+                        {
+                            v.push_back((x_, y_, c + 1));
+                        }
+                    }
+                }
+                part1_total_trailheads = part1_total_trailheads + (unique_trails.len() as u32);
+            }
+        }
+    }
+    println!("Part 1 - {}", part1_total_trailheads);
+    println!("Part 2 - {}", part2_total_unique_trails);
 }
