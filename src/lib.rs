@@ -1,6 +1,7 @@
 use std::cmp::min;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
+use std::hash::Hash;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use std::str::FromStr;
@@ -914,4 +915,71 @@ pub fn day10() {
     }
     println!("Part 1 - {}", part1_total_trailheads);
     println!("Part 2 - {}", part2_total_unique_trails);
+}
+
+pub fn day11() {
+    let mut stones: HashMap<u64, u64> = HashMap::new();
+    for v in read_file("day11.txt")[0]
+        .split_whitespace()
+        .map(|x| x.parse::<u64>().unwrap())
+    {
+        match stones.get(&v) {
+            Some(pre) => {
+                stones.insert(v, pre + 1);
+            }
+            None => {
+                stones.insert(v, 1);
+            }
+        }
+    }
+    let check_at_iteration = [24, 74];
+    let max_iteration = *check_at_iteration.iter().max().unwrap() + 1;
+
+    for i in 0..max_iteration {
+
+        //println!("{:?}", next_stones);
+        stones = find_next_stones(stones);
+        if check_at_iteration.contains(&i) {
+            println!(
+                "Count after iteration {} - {}",
+                i,
+                stones.values().sum::<u64>()
+            );
+        }
+    }
+}
+
+fn find_next_stones(stones: HashMap<u64, u64>) -> HashMap<u64, u64> {
+    let mut next_stones: HashMap<u64, u64> = HashMap::new();
+
+    for kv in stones {
+        let new_values: Vec<u64>;
+        let s = kv.0;
+        if s.eq(&0) {
+            new_values = vec![1];
+        } else {
+            let s_str = s.to_string();
+            if s_str.len() % 2 != 0 {
+                new_values = vec![s * 2024]
+            } else {
+                let half = s_str.len() / 2;
+                new_values = vec![
+                    s_str.get(0..half).unwrap().parse().unwrap(),
+                    s_str.get(half..).unwrap().parse().unwrap(),
+                ];
+            };
+        }
+        for v in new_values {
+            match next_stones.get(&v) {
+                Some(pre) => {
+                    next_stones.insert(v, pre + kv.1);
+                }
+                None => {
+                    next_stones.insert(v, kv.1);
+                }
+            }
+        }
+    }
+    //println!("{:?}", next_stones);
+    next_stones
 }
