@@ -1,4 +1,5 @@
-use std::cmp::min;
+use regex::Regex;
+use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::hash::Hash;
@@ -917,38 +918,6 @@ pub fn day10() {
     println!("Part 2 - {}", part2_total_unique_trails);
 }
 
-pub fn day11() {
-    let mut stones: HashMap<u64, u64> = HashMap::new();
-    for v in read_file("day11.txt")[0]
-        .split_whitespace()
-        .map(|x| x.parse::<u64>().unwrap())
-    {
-        match stones.get(&v) {
-            Some(pre) => {
-                stones.insert(v, pre + 1);
-            }
-            None => {
-                stones.insert(v, 1);
-            }
-        }
-    }
-    let check_at_iteration = [24, 74];
-    let max_iteration = *check_at_iteration.iter().max().unwrap() + 1;
-
-    for i in 0..max_iteration {
-
-        //println!("{:?}", next_stones);
-        stones = find_next_stones(stones);
-        if check_at_iteration.contains(&i) {
-            println!(
-                "Count after iteration {} - {}",
-                i,
-                stones.values().sum::<u64>()
-            );
-        }
-    }
-}
-
 fn find_next_stones(stones: HashMap<u64, u64>) -> HashMap<u64, u64> {
     let mut next_stones: HashMap<u64, u64> = HashMap::new();
 
@@ -982,4 +951,164 @@ fn find_next_stones(stones: HashMap<u64, u64>) -> HashMap<u64, u64> {
     }
     //println!("{:?}", next_stones);
     next_stones
+}
+
+pub fn day11() {
+    let mut stones: HashMap<u64, u64> = HashMap::new();
+    for v in read_file("day11.txt")[0]
+        .split_whitespace()
+        .map(|x| x.parse::<u64>().unwrap())
+    {
+        match stones.get(&v) {
+            Some(pre) => {
+                stones.insert(v, pre + 1);
+            }
+            None => {
+                stones.insert(v, 1);
+            }
+        }
+    }
+    let check_at_iteration = [24, 74];
+    let max_iteration = *check_at_iteration.iter().max().unwrap() + 1;
+
+    for i in 0..max_iteration {
+        //println!("{:?}", next_stones);
+        stones = find_next_stones(stones);
+        if check_at_iteration.contains(&i) {
+            println!(
+                "Count after iteration {} - {}",
+                i,
+                stones.values().sum::<u64>()
+            );
+        }
+    }
+}
+
+pub fn bfs(visited: &mut Vec<Vec<bool>>, matrix: &Vec<Vec<char>>, x: i32, y: i32) -> usize {
+    let (mut area, mut parameter) = (0, 0);
+    visited[x as usize][y as usize] = true;
+    let check_char = matrix[x as usize][y as usize];
+    let mut q = VecDeque::new();
+    q.push_back((x, y));
+    let xd = [-1, 1, 0, 0];
+    let yd = [0, 0, -1, 1];
+    let (n, m) = (matrix.len() as i32, matrix[0].len() as i32);
+    while !q.is_empty() {
+        let (x, y) = q.pop_front().unwrap();
+        area = area + 1;
+        for i in 0..4 {
+            let (x_, y_) = (x + xd[i], y + yd[i]);
+            if x_ >= 0 && x_ < n && y_ >= 0 && y_ < m {
+                let (xu, yu) = (x_ as usize, y_ as usize);
+                if matrix[xu][yu].eq(&check_char) && !visited[xu][yu] {
+                    q.push_back((x_, y_));
+                    visited[xu][yu] = true;
+                } else if !matrix[xu][yu].eq(&check_char) {
+                    parameter = parameter + 1;
+                }
+            } else {
+                parameter = parameter + 1;
+            }
+        }
+    }
+    area * parameter
+}
+
+pub fn day12() {
+    let mut matrix: Vec<Vec<char>> = vec![];
+    for line in read_file("day12.txt") {
+        let v: Vec<char> = line.chars().collect();
+        matrix.push(v);
+    }
+    let (n, m) = (matrix.len(), matrix[0].len());
+    let mut visited = vec![vec![false; m]; n];
+    let mut sum = 0;
+    for i in 0..n {
+        for j in 0..m {
+            if !visited[i][j] {
+                sum = sum + bfs(&mut visited, &matrix, i as i32, j as i32);
+                //println!("{} {} {}", i, j, sum);
+            }
+        }
+    }
+    println!("Part 1 - {}", sum);
+}
+
+fn capture_and_get_coordinates(needle: &Regex, haystack: &String) -> (u64, u64) {
+    let c = needle.captures(haystack).unwrap();
+    let (xa, ya) = (
+        u64::from_str(c.get(1).unwrap().as_str()).unwrap(),
+        u64::from_str(c.get(2).unwrap().as_str()).unwrap(),
+    );
+    (xa, ya)
+}
+
+fn solve(button_a: &(u64, u64), button_b: &(u64, u64), prize: &(u64, u64)) -> Option<u64> {
+    let (cost_a, cost_b) = (3, 1);
+    let mut min_cost: Option<u64> = None;
+    let (x_bound, y_bound) = (
+        max(prize.0 / button_a.0, prize.0 / button_b.0) + 1,
+        max(prize.1 / button_a.1, prize.1 / button_b.1) + 1,
+    );
+    for i in 1..x_bound {
+        for j in 1..y_bound {
+            if i * button_a.0 + j * button_b.0 == prize.0
+                && i * button_a.1 + j * button_b.1 == prize.1
+            {
+                let current = i * cost_a + j * cost_b;
+                match min_cost {
+                    Some(previous) => {
+                        min_cost = Some(min(current, previous));
+                    }
+                    None => {
+                        min_cost = Some(current);
+                    }
+                }
+            }
+        }
+    }
+    min_cost
+}
+pub fn day13() {
+    let button_pattern = Regex::new("Button [A-B]: X\\+([0-9]+), Y\\+([0-9]+)").unwrap();
+    let prize_pattern = Regex::new("Prize: X=([0-9]+), Y=([0-9]+)").unwrap();
+    let lines = read_file("day13.txt");
+    let mut file_itr = lines.iter();
+    let mut part1_ans: u64 = 0;
+    let mut part2_ans: u64 = 0;
+    let mut case_no = 0;
+    let part_2_prize_correction: u64 = 10000000000000;
+    while let Some(button_a) = file_itr.next() {
+        case_no = case_no + 1;
+        println!("On case no - {}", case_no);
+        let Some(button_b) = file_itr.next() else {
+            break;
+        };
+        let Some(prize) = file_itr.next() else { break };
+        let (xa, ya) = capture_and_get_coordinates(&button_pattern, button_a);
+        //println!("{} {}", xa, ya);
+        let (xb, yb) = capture_and_get_coordinates(&button_pattern, button_b);
+        //println!("{} {}", xb, yb);
+        let (xp, yp) = capture_and_get_coordinates(&prize_pattern, prize);
+        //println!("{} {}", xp, yp);
+        match solve(&(xa, ya), &(xb, yb), &(xp, yp)) {
+            Some(v) => part1_ans = part1_ans + v,
+            _ => {}
+        }
+
+        match solve(
+            &(xa, ya),
+            &(xb, yb),
+            &(xp + part_2_prize_correction, yp + part_2_prize_correction),
+        ) {
+            Some(v) => part2_ans = part2_ans + v,
+            _ => {}
+        }
+
+        if file_itr.next() == None {
+            break;
+        }
+    }
+    println!("Part 1 - {}", part1_ans);
+    println!("Part 2 - {}", part2_ans);
 }
