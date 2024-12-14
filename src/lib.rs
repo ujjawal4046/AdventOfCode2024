@@ -1034,18 +1034,25 @@ pub fn day12() {
     println!("Part 1 - {}", sum);
 }
 
-fn capture_and_get_coordinates(needle: &Regex, haystack: &String) -> (u64, u64) {
+fn capture_and_get_coordinates(needle: &Regex, haystack: &String) -> (i64, i64) {
     let c = needle.captures(haystack).unwrap();
     let (xa, ya) = (
-        u64::from_str(c.get(1).unwrap().as_str()).unwrap(),
-        u64::from_str(c.get(2).unwrap().as_str()).unwrap(),
+        i64::from_str(c.get(1).unwrap().as_str()).unwrap(),
+        i64::from_str(c.get(2).unwrap().as_str()).unwrap(),
     );
     (xa, ya)
 }
 
-fn solve(button_a: &(u64, u64), button_b: &(u64, u64), prize: &(u64, u64)) -> Option<u64> {
+/**
+Brute force to solve system of linear equation with 2 variables
+**/
+fn solve_brute_method(
+    button_a: &(i64, i64),
+    button_b: &(i64, i64),
+    prize: &(i64, i64),
+) -> Option<i64> {
     let (cost_a, cost_b) = (3, 1);
-    let mut min_cost: Option<u64> = None;
+    let mut min_cost: Option<i64> = None;
     let (x_bound, y_bound) = (
         max(prize.0 / button_a.0, prize.0 / button_b.0) + 1,
         max(prize.1 / button_a.1, prize.1 / button_b.1) + 1,
@@ -1069,15 +1076,39 @@ fn solve(button_a: &(u64, u64), button_b: &(u64, u64), prize: &(u64, u64)) -> Op
     }
     min_cost
 }
+
+/**
+Cramer's rule for solving system of linear equation with 2 variables
+**/
+fn solve_matrix_method(
+    button_a: &(i64, i64),
+    button_b: &(i64, i64),
+    prize: &(i64, i64),
+) -> Option<i64> {
+    let (cost_x, cost_y) = (3, 1);
+    let mut min_cost: Option<i64> = None;
+    let (xa, xb) = (button_a.0, button_b.0);
+    let (ya, yb) = (button_a.1, button_b.1);
+    let (px, py) = prize;
+    let determinant = xa * yb - xb * ya;
+    let x = yb * px - xb * py;
+    let y = xa * py - ya * px;
+    if x % determinant == 0 && y % determinant == 0 {
+        let (sol_x, sol_y) = (x / determinant, y / determinant);
+        //println!("{} {}", sol_x, sol_y);
+        min_cost = Some(sol_x * cost_x + sol_y * cost_y);
+    }
+    min_cost
+}
 pub fn day13() {
     let button_pattern = Regex::new("Button [A-B]: X\\+([0-9]+), Y\\+([0-9]+)").unwrap();
     let prize_pattern = Regex::new("Prize: X=([0-9]+), Y=([0-9]+)").unwrap();
     let lines = read_file("day13.txt");
     let mut file_itr = lines.iter();
-    let mut part1_ans: u64 = 0;
-    let mut part2_ans: u64 = 0;
+    let mut part1_ans: i64 = 0;
+    let mut part2_ans: i64 = 0;
     let mut case_no = 0;
-    let part_2_prize_correction: u64 = 10000000000000;
+    let part_2_prize_correction: i64 = 10000000000000;
     while let Some(button_a) = file_itr.next() {
         case_no = case_no + 1;
         println!("On case no - {}", case_no);
@@ -1091,12 +1122,12 @@ pub fn day13() {
         //println!("{} {}", xb, yb);
         let (xp, yp) = capture_and_get_coordinates(&prize_pattern, prize);
         //println!("{} {}", xp, yp);
-        match solve(&(xa, ya), &(xb, yb), &(xp, yp)) {
+        match solve_matrix_method(&(xa, ya), &(xb, yb), &(xp, yp)) {
             Some(v) => part1_ans = part1_ans + v,
             _ => {}
         }
 
-        match solve(
+        match solve_matrix_method(
             &(xa, ya),
             &(xb, yb),
             &(xp + part_2_prize_correction, yp + part_2_prize_correction),
@@ -1111,4 +1142,46 @@ pub fn day13() {
     }
     println!("Part 1 - {}", part1_ans);
     println!("Part 2 - {}", part2_ans);
+}
+
+pub fn day14() {
+    let robot_pattern = Regex::new("p=(-?[0-9]+),(-?[0-9]+) v=(-?[0-9]+),(-?[0-9]+)").unwrap();
+    let (len_x, len_y) = (101, 103);
+    let time = 100;
+    let mut quadrant = [0; 4];
+    for line in read_file("day14.txt") {
+        let captures = robot_pattern.captures(&line).unwrap();
+        let (cur_x, cur_y) = (
+            i64::from_str(captures.get(1).unwrap().as_str()).unwrap(),
+            i64::from_str(captures.get(2).unwrap().as_str()).unwrap(),
+        );
+        let (vel_x, vel_y) = (
+            i64::from_str(captures.get(3).unwrap().as_str()).unwrap(),
+            i64::from_str(captures.get(4).unwrap().as_str()).unwrap(),
+        );
+        println!("{} {} {} {}", cur_x, cur_y, vel_x, vel_y);
+        let (new_x, new_y) = (
+            //Rust doesn't have modulo, so use rem_euclid instead, ref https://internals.rust-lang.org/t/mathematical-modulo-operator/5952
+            (cur_x + time * vel_x).rem_euclid(len_x),
+            (cur_y + time * vel_y).rem_euclid(len_y),
+        );
+        if new_x == len_x / 2 || new_y == len_y / 2 {
+            continue;
+        }
+        println!("{} {}", new_x, new_y);
+        if new_x < len_x / 2 {
+            if new_y < len_y / 2 {
+                quadrant[0] = quadrant[0] + 1;
+            } else {
+                quadrant[1] = quadrant[1] + 1;
+            }
+        } else {
+            if new_y < len_y / 2 {
+                quadrant[2] = quadrant[2] + 1;
+            } else {
+                quadrant[3] = quadrant[3] + 1;
+            }
+        }
+    }
+    println!("Part 1 - {}", quadrant.iter().fold(1, |acc, v| acc * v));
 }
