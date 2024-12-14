@@ -1046,6 +1046,8 @@ fn capture_and_get_coordinates(needle: &Regex, haystack: &String) -> (i64, i64) 
 /**
 Brute force to solve system of linear equation with 2 variables
 **/
+#[allow(dead_code)]
+#[warn(deprecated)]
 fn solve_brute_method(
     button_a: &(i64, i64),
     button_b: &(i64, i64),
@@ -1111,7 +1113,7 @@ pub fn day13() {
     let part_2_prize_correction: i64 = 10000000000000;
     while let Some(button_a) = file_itr.next() {
         case_no = case_no + 1;
-        println!("On case no - {}", case_no);
+        //println!("On case no - {}", case_no);
         let Some(button_b) = file_itr.next() else {
             break;
         };
@@ -1144,11 +1146,92 @@ pub fn day13() {
     println!("Part 2 - {}", part2_ans);
 }
 
+#[derive(Debug)]
+struct Robot {
+    init_pos: (i64, i64),
+    velocity: (i64, i64),
+}
+
+fn display(matrix: &Vec<Vec<char>>) {
+    for i in 0..matrix.len() {
+        for j in 0..matrix[0].len() {
+            print!("{}", matrix[i][j]);
+        }
+        println!();
+    }
+}
+
+fn total_connected_component(matrix: &Vec<Vec<char>>) -> usize {
+    let mut ans = 0;
+    let (len_x, len_y) = (matrix.len() as i32, matrix[0].len() as i32);
+    let mut visited = vec![vec![false; len_y as usize]; len_x as usize];
+    let xd = [-1, 1, 0, 0];
+    let yd = [0, 0, -1, 1];
+    for i in 0..len_x {
+        for j in 0..len_y {
+            if matrix[i as usize][j as usize].eq(&'1') && !visited[i as usize][j as usize] {
+                ans = ans + 1;
+                let mut q = VecDeque::new();
+                q.push_back((i, j));
+                visited[i as usize][j as usize] = true;
+                while !q.is_empty() {
+                    let (x, y) = q.pop_front().unwrap();
+                    for k in 0..4 {
+                        let (x_, y_) = ((x) + xd[k], (y) + yd[k]);
+                        if x_ >= 0
+                            && x_ < len_x
+                            && y_ >= 0
+                            && y_ < len_y
+                            && matrix[x_ as usize][y_ as usize].eq(&'1')
+                            && !visited[x_ as usize][y_ as usize]
+                        {
+                            q.push_back((x_, y_));
+                            visited[x_ as usize][y_ as usize] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    //println!("Total components - {}", ans);
+    ans
+}
+
+fn simulate(robots: &Vec<Robot>, len_x: &i64, len_y: &i64) {
+    let mut second = 0;
+    //When connected components decrease by 50%, then we have more likelihood of seeing the tree created by close robots
+    let cluster_percentage = 0.5;
+    let uniq_component_threshold = f64::floor(robots.len() as f64 * cluster_percentage) as usize;
+    loop {
+        let mut graphical_rep = vec![vec!['.'; *len_y as usize]; *len_x as usize];
+        second = second + 1;
+        for robot in robots {
+            let (init, vel) = (robot.init_pos, robot.velocity);
+            //println!("{:?}", robot);
+            let (x, y) = (
+                (init.0 + second * vel.0).rem_euclid(*len_x),
+                (init.1 + second * vel.1).rem_euclid(*len_y),
+            );
+            //println!("{} {}", x, y);
+            graphical_rep[x as usize][y as usize] = '1';
+        }
+        if total_connected_component(&graphical_rep) <= uniq_component_threshold {
+            println!("Current iteration - {}", second);
+            display(&graphical_rep);
+            println!("\n\n\n\n\n");
+            //Saw the tree in first attempt :), more loops may be needed for more intelligent test case
+            break;
+        }
+    }
+}
+
 pub fn day14() {
     let robot_pattern = Regex::new("p=(-?[0-9]+),(-?[0-9]+) v=(-?[0-9]+),(-?[0-9]+)").unwrap();
     let (len_x, len_y) = (101, 103);
     let time = 100;
     let mut quadrant = [0; 4];
+    let mut robots: Vec<Robot> = vec![];
+
     for line in read_file("day14.txt") {
         let captures = robot_pattern.captures(&line).unwrap();
         let (cur_x, cur_y) = (
@@ -1159,7 +1242,12 @@ pub fn day14() {
             i64::from_str(captures.get(3).unwrap().as_str()).unwrap(),
             i64::from_str(captures.get(4).unwrap().as_str()).unwrap(),
         );
-        println!("{} {} {} {}", cur_x, cur_y, vel_x, vel_y);
+        let robot = Robot {
+            init_pos: (cur_x, cur_y),
+            velocity: (vel_x, vel_y),
+        };
+        robots.push(robot);
+        //println!("{} {} {} {}", cur_x, cur_y, vel_x, vel_y);
         let (new_x, new_y) = (
             //Rust doesn't have modulo, so use rem_euclid instead, ref https://internals.rust-lang.org/t/mathematical-modulo-operator/5952
             (cur_x + time * vel_x).rem_euclid(len_x),
@@ -1168,7 +1256,7 @@ pub fn day14() {
         if new_x == len_x / 2 || new_y == len_y / 2 {
             continue;
         }
-        println!("{} {}", new_x, new_y);
+        //println!("{} {}", new_x, new_y);
         if new_x < len_x / 2 {
             if new_y < len_y / 2 {
                 quadrant[0] = quadrant[0] + 1;
@@ -1184,4 +1272,5 @@ pub fn day14() {
         }
     }
     println!("Part 1 - {}", quadrant.iter().fold(1, |acc, v| acc * v));
+    simulate(&robots, &len_x, &len_y);
 }
