@@ -1,6 +1,6 @@
 use regex::Regex;
 use std::cmp::{max, min};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::hash::Hash;
 use std::io::{BufRead, BufReader, Read};
@@ -1273,4 +1273,231 @@ pub fn day14() {
     }
     println!("Part 1 - {}", quadrant.iter().fold(1, |acc, v| acc * v));
     simulate(&robots, &len_x, &len_y);
+}
+
+fn move_robot_part_1_day_15(
+    dir: &char,
+    x: usize,
+    y: usize,
+    positions: &mut Vec<Vec<char>>,
+) -> (usize, usize) {
+    let moves = HashMap::from([('>', (0, 1)), ('<', (0, -1)), ('v', (1, 0)), ('^', (-1, 0))]);
+    let (xd, yd) = moves.get(dir).unwrap();
+    let (mut x_, mut y_);
+    (x_, y_) = ((x as i32 + xd) as usize, (y as i32 + yd) as usize);
+    let (mut new_x, mut new_y) = (x, y);
+    if positions[x_][y_].eq(&'.') {
+        (new_x, new_y) = (x_, y_)
+    } else if positions[x_][y_].eq(&'O') {
+        (new_x, new_y) = (x_, y_);
+        while positions[x_][y_].eq(&'O') {
+            (x_, y_) = ((x_ as i32 + xd) as usize, (y_ as i32 + yd) as usize);
+        }
+        if !positions[x_][y_].eq(&'#') {
+            positions[x_][y_] = 'O';
+        } else {
+            //Reset position
+            (new_x, new_y) = (x, y);
+        }
+    }
+
+    if new_x != x || new_y != y {
+        positions[x][y] = '.';
+        positions[new_x][new_y] = '@';
+    }
+    (new_x, new_y)
+}
+
+/*
+fn move_robot_part_2_day_15(
+    dir: &char,
+    x: usize,
+    y: usize,
+    positions: &mut Vec<Vec<char>>,
+) -> (usize, usize) {
+    let moves = HashMap::from([('>', (0, 1)), ('<', (0, -1)), ('v', (1, 0)), ('^', (-1, 0))]);
+    (13, 2)
+}
+ */
+
+fn calculate_gps_score(positions: &Vec<Vec<char>>, check_char: char) -> usize {
+    let (n, m) = (positions.len(), positions[0].len());
+    let mut ans = 0;
+    for i in 0..n {
+        for j in 0..m {
+            if positions[i][j].eq(&check_char) {
+                ans = ans + i * 100 + j;
+            }
+        }
+    }
+    ans
+}
+
+fn perform_moves_robot(
+    positions: &mut Vec<Vec<char>>,
+    mut x: usize,
+    mut y: usize,
+    moves: &Vec<Vec<char>>,
+    robot_function: fn(&char, usize, usize, &mut Vec<Vec<char>>) -> (usize, usize),
+) {
+    for l in moves {
+        for m in l {
+            (x, y) = robot_function(&m, x, y, positions);
+        }
+    }
+}
+
+pub fn day15() {
+    let mut positions: Vec<Vec<char>> = vec![];
+    let mut positions2: Vec<Vec<char>> = vec![];
+    let mut moves: Vec<Vec<char>> = vec![];
+    let (mut x, mut y) = (0, 0);
+    for line in read_file("day15.txt") {
+        if line.starts_with("#") {
+            positions.push(line.chars().collect());
+            match positions[positions.len() - 1]
+                .iter()
+                .position(|x| x.eq(&'@'))
+            {
+                Some(v) => {
+                    x = positions.len() - 1;
+                    y = v;
+                }
+                _ => {}
+            }
+
+            let mut vec2 = vec![];
+            for c in line.chars() {
+                if c.eq(&'@') {
+                    vec2.push(c);
+                    vec2.push('.');
+                } else if c.eq(&'O') {
+                    vec2.push('[');
+                    vec2.push(']');
+                } else {
+                    vec2.push(c);
+                    vec2.push(c);
+                }
+            }
+            positions2.push(vec2);
+        } else if line.starts_with(|x: char| !x.is_whitespace()) {
+            moves.push(line.chars().collect());
+        }
+    }
+
+    //display(&positions2);
+    perform_moves_robot(&mut positions, x, y, &moves, move_robot_part_1_day_15);
+    perform_moves_robot(&mut positions2, x, 2 * y, &moves, move_robot_part_1_day_15);
+    println!("Part 1 - {}", calculate_gps_score(&positions, 'O'));
+    println!("Part 2 - {}", calculate_gps_score(&positions2, '['));
+}
+
+fn calculate_direction_cost(cur_dir: &char, new_dir: &char) -> i32 {
+    if cur_dir.eq(new_dir) {
+        0
+    } else if (cur_dir.eq(&'s') && new_dir.eq(&'n'))
+        || (cur_dir.eq(&'n') && new_dir.eq(&'s'))
+        || (cur_dir.eq(&'e') && new_dir.eq(&'w'))
+        || (cur_dir.eq(&'w') && new_dir.eq(&'e'))
+    {
+        2000
+    } else {
+        1000
+    }
+}
+fn solve_day_16(positions: &Vec<Vec<char>>, start: (i32, i32), end: (i32, i32)) {
+    let mut pq = BinaryHeap::new();
+    const INFINITY: i32 = i32::MAX;
+    pq.push((0, start, 'e', start, 'e'));
+    let (n, m) = (positions.len() as i32, positions[0].len() as i32);
+    let mut visited_with_directions = HashMap::new();
+    for c in ['s', 'e', 'w', 'n'] {
+        visited_with_directions.insert(
+            c,
+            vec![vec![(INFINITY, HashSet::new()); m as usize]; n as usize],
+        );
+        visited_with_directions.get_mut(&c).unwrap()[start.0 as usize][start.1 as usize].0 = 0;
+    }
+
+    let dir = HashMap::from([('e', (0, 1)), ('w', (0, -1)), ('n', (-1, 0)), ('s', (1, 0))]);
+    while !pq.is_empty() {
+        let (dist, (ux, uy), cur_dir, pred, pred_dir) = pq.pop().unwrap();
+        /*
+        println!(
+            "{} {} {} {} {} {} {}",
+            dist, ux, uy, cur_dir, pred.0, pred.1, pred_dir
+        );
+         */
+        let visited = visited_with_directions.get_mut(&cur_dir).unwrap();
+        if !start.eq(&(ux, uy)) && -dist == visited[ux as usize][uy as usize].0 {
+            visited[ux as usize][uy as usize].1.insert((pred, pred_dir));
+        }
+        for new_dir in dir.keys() {
+            let cost = calculate_direction_cost(&cur_dir, new_dir);
+            let (vx, vy) = (
+                (ux + dir[new_dir].0) as usize,
+                (uy + dir[new_dir].1) as usize,
+            );
+            let visited = visited_with_directions.get_mut(&new_dir).unwrap();
+            if !positions[vx][vy].eq(&'#') && (-dist + 1 + cost) <= visited[vx][vy].0 {
+                visited[vx][vy].0 = (-dist) + 1 + cost;
+                pq.push((
+                    -visited[vx][vy].0,
+                    (vx as i32, vy as i32),
+                    *new_dir,
+                    (ux, uy),
+                    cur_dir,
+                ));
+            }
+        }
+    }
+    let min_dist = visited_with_directions
+        .values()
+        .map(|x| x[end.0 as usize][end.1 as usize].0)
+        .min()
+        .unwrap();
+    println!("Part 1 - {}", min_dist);
+
+    let mut good_seats: HashSet<(i32, i32)> = HashSet::new();
+    let mut q: VecDeque<((i32, i32), char)> = VecDeque::new();
+    for c in ['s', 'e', 'w', 'n'] {
+        if visited_with_directions.get_mut(&c).unwrap()[end.0 as usize][end.1 as usize].0
+            == min_dist
+        {
+            q.push_back((end, c));
+        }
+    }
+    while !q.is_empty() {
+        let cur = q.pop_front().unwrap();
+        //println!("{:?}", cur);
+        good_seats.insert(cur.0);
+        let visited = visited_with_directions.get_mut(&cur.1).unwrap();
+        for pred in &visited[cur.0 .0 as usize][cur.0 .1 as usize].1 {
+            q.push_back(*pred);
+        }
+    }
+    println!("Part 2 - {}", good_seats.len());
+}
+
+pub fn day16() {
+    let mut positions: Vec<Vec<char>> = vec![];
+    let mut start: (i32, i32) = (0, 0);
+    let mut end: (i32, i32) = (0, 0);
+    for line in read_file("day16.txt") {
+        positions.push(line.chars().collect());
+        match positions[positions.len() - 1]
+            .iter()
+            .position(|x| x.eq(&'S') || x.eq(&'E'))
+        {
+            Some(v) => {
+                if positions[positions.len() - 1][v].eq(&'S') {
+                    start = (positions.len() as i32 - 1, v as i32);
+                } else {
+                    end = (positions.len() as i32 - 1, v as i32);
+                }
+            }
+            _ => {}
+        }
+    }
+    solve_day_16(&positions, start, end);
 }
