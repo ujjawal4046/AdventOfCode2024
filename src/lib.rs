@@ -1684,3 +1684,61 @@ pub fn day17() {
      println!("Part 2 - {}", mid);
      */
 }
+
+fn check_reachable_bfs(corrupted: &Vec<Vec<bool>>) -> Option<i32> {
+    let n = corrupted.len();
+    let mut visited = vec![vec![-1; n]; n];
+    visited[0][0] = 0;
+    let mut q = VecDeque::new();
+    q.push_back((0, 0));
+    let xd: [i32; 4] = [-1, 1, 0, 0];
+    let yd: [i32; 4] = [0, 0, -1, 1];
+    while !q.is_empty() {
+        let (x, y) = q.pop_front().unwrap();
+        for i in 0..4 {
+            let (x_, y_) = (x + xd[i], y + yd[i]);
+            if x_ >= 0
+                && x_ < n as i32
+                && y_ >= 0
+                && y_ < n as i32
+                && !corrupted[x_ as usize][y_ as usize]
+                && visited[x_ as usize][y_ as usize] < 0
+            {
+                q.push_back((x_, y_));
+                visited[x_ as usize][y_ as usize] = visited[x as usize][y as usize] + 1;
+            }
+        }
+    }
+    if visited[n - 1][n - 1] < 0 {
+        None
+    } else {
+        Some(visited[n - 1][n - 1])
+    }
+}
+pub fn day18() {
+    let n = 71;
+    let mut corrupted = vec![vec![false; n]; n];
+    let mut count = 0;
+    let mut byte_pos = vec![];
+    for l in read_file("day18.txt") {
+        count = count + 1;
+        let v: Vec<usize> = l.split(',').map(|x| x.parse::<usize>().unwrap()).collect();
+        byte_pos.push((v[0], v[1]));
+    }
+    for i in 0..byte_pos.len() {
+        corrupted[byte_pos[i].0][byte_pos[i].1] = true;
+        if i >= 1024 {
+            match check_reachable_bfs(&corrupted) {
+                Some(v) => {
+                    if i == 1024 {
+                        println!("Part 1 - {}", v);
+                    }
+                }
+                None => {
+                    println!("Part 2 - {},{}", byte_pos[i].0, byte_pos[i].1);
+                    break;
+                }
+            }
+        }
+    }
+}
