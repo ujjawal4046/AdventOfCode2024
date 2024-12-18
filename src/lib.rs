@@ -1,6 +1,6 @@
 use regex::Regex;
 use std::cmp::{max, min};
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::hash::Hash;
 use std::io::{BufRead, BufReader, Read};
@@ -1159,6 +1159,7 @@ fn display(matrix: &Vec<Vec<char>>) {
         }
         println!();
     }
+    println!("\n\n");
 }
 
 fn total_connected_component(matrix: &Vec<Vec<char>>) -> usize {
@@ -1308,7 +1309,68 @@ fn move_robot_part_1_day_15(
     (new_x, new_y)
 }
 
-/*
+fn step_forward_robot_part_2_day_15(
+    dir: &(i32, i32),
+    positions: &mut Vec<Vec<char>>,
+    cur_position: Vec<(usize, usize)>,
+) -> Option<Vec<(usize, usize)>> {
+    if cur_position.iter().any(|x| positions[x.0][x.1].eq(&'#')) {
+        None
+    } else if cur_position.iter().all(|x| positions[x.0][x.1].eq(&'.')) {
+        Some(cur_position)
+    } else {
+        let next_position: Vec<(usize, usize)> = cur_position
+            .iter()
+            .map(|p| (p.0 as i32 + dir.0, p.1 as i32 + dir.1))
+            .map(|x| (x.0 as usize, x.1 as usize))
+            .collect();
+        let mut next_position_copy = BTreeSet::new();
+
+        //vertical movement
+        for i in 0..next_position.len() {
+            let p = next_position[i];
+            match positions[p.0][p.1] {
+                '[' => {
+                    next_position_copy.insert(p);
+                    if dir.1 == 0 {
+                        next_position_copy.insert((p.0, p.1 + 1));
+                    }
+                }
+                ']' => {
+                    next_position_copy.insert(p);
+                    if dir.1 == 0 {
+                        next_position_copy.insert((p.0, p.1 - 1));
+                    }
+                }
+                '#' => {
+                    next_position_copy.insert(p);
+                }
+                _ => {}
+            }
+        }
+
+        //Remove redundant empty spaces
+        next_position_copy.retain(|x| !positions[x.0][x.1].eq(&'.'));
+
+        match step_forward_robot_part_2_day_15(
+            dir,
+            positions,
+            next_position_copy.into_iter().collect(),
+        ) {
+            Some(_) => {
+                for i in 0..next_position.len() {
+                    let n = next_position[i];
+                    let c = cur_position[i];
+                    positions[n.0][n.1] = positions[c.0][c.1];
+                    positions[c.0][c.1] = '.';
+                }
+                Some(next_position)
+            }
+            None => None,
+        }
+    }
+}
+
 fn move_robot_part_2_day_15(
     dir: &char,
     x: usize,
@@ -1316,9 +1378,12 @@ fn move_robot_part_2_day_15(
     positions: &mut Vec<Vec<char>>,
 ) -> (usize, usize) {
     let moves = HashMap::from([('>', (0, 1)), ('<', (0, -1)), ('v', (1, 0)), ('^', (-1, 0))]);
-    (13, 2)
+    let delta = moves.get(dir).unwrap();
+    match step_forward_robot_part_2_day_15(delta, positions, vec![(x, y)]) {
+        Some(v) => v[0],
+        None => (x, y),
+    }
 }
- */
 
 fn calculate_gps_score(positions: &Vec<Vec<char>>, check_char: char) -> usize {
     let (n, m) = (positions.len(), positions[0].len());
@@ -1340,9 +1405,12 @@ fn perform_moves_robot(
     moves: &Vec<Vec<char>>,
     robot_function: fn(&char, usize, usize, &mut Vec<Vec<char>>) -> (usize, usize),
 ) {
+    //display(positions);
     for l in moves {
         for m in l {
             (x, y) = robot_function(&m, x, y, positions);
+            //println!("Move : {}", m);
+            //display(positions);
         }
     }
 }
@@ -1385,9 +1453,8 @@ pub fn day15() {
         }
     }
 
-    //display(&positions2);
     perform_moves_robot(&mut positions, x, y, &moves, move_robot_part_1_day_15);
-    perform_moves_robot(&mut positions2, x, 2 * y, &moves, move_robot_part_1_day_15);
+    perform_moves_robot(&mut positions2, x, 2 * y, &moves, move_robot_part_2_day_15);
     println!("Part 1 - {}", calculate_gps_score(&positions, 'O'));
     println!("Part 2 - {}", calculate_gps_score(&positions2, '['));
 }
@@ -1500,4 +1567,120 @@ pub fn day16() {
         }
     }
     solve_day_16(&positions, start, end);
+}
+
+fn get_combo_operand_value(operand: &u64, registers: Vec<u64>) -> u64 {
+    if *operand <= 3 {
+        u64::from(*operand)
+    } else if *operand <= 7 {
+        registers[(operand - 4) as usize]
+    } else {
+        panic!("Reserved operand {}", operand)
+    }
+}
+
+fn run_virtual_machine(
+    mut reg_a: u64,
+    mut reg_b: u64,
+    mut reg_c: u64,
+    program: &Vec<u64>,
+) -> Vec<u64> {
+    let mut int_ptr = 0;
+    let mut out_stream = vec![];
+    while int_ptr < program.len() {
+        let (opcode, operand) = (program[int_ptr], program[int_ptr + 1]);
+        match opcode {
+            0 => {
+                reg_a = reg_a
+                    / 2_u64
+                        .pow(get_combo_operand_value(&operand, vec![reg_a, reg_b, reg_c]) as u32);
+            }
+            1 => {
+                reg_b = reg_b ^ operand;
+            }
+            2 => {
+                reg_b = get_combo_operand_value(&operand, vec![reg_a, reg_b, reg_c]).rem_euclid(8);
+            }
+            3 => {
+                if reg_a != 0 {
+                    int_ptr = operand as usize;
+                    continue;
+                }
+            }
+            4 => {
+                reg_b = reg_b ^ reg_c;
+            }
+            5 => {
+                out_stream.push(
+                    get_combo_operand_value(&operand, vec![reg_a, reg_b, reg_c]).rem_euclid(8),
+                );
+            }
+            6 => {
+                reg_b = reg_a
+                    / 2_u64
+                        .pow(get_combo_operand_value(&operand, vec![reg_a, reg_b, reg_c]) as u32);
+            }
+            7 => {
+                reg_c = reg_a
+                    / 2_u64
+                        .pow(get_combo_operand_value(&operand, vec![reg_a, reg_b, reg_c]) as u32);
+            }
+            _ => {
+                panic!("Invalid opcode {}", opcode)
+            }
+        }
+        int_ptr = int_ptr + 2;
+    }
+    out_stream
+}
+
+pub fn day17() {
+    let register_regex = Regex::new("Register [A-Z]: ([0-9]+)").unwrap();
+    let program_regex = Regex::new("Program: ([0-9,]+)").unwrap();
+    let lines = read_file("day17.txt");
+    let reg_a = u64::from_str(&register_regex.captures(lines[0].as_str()).unwrap()[1]).unwrap();
+    let reg_b = u64::from_str(&register_regex.captures(lines[1].as_str()).unwrap()[1]).unwrap();
+    let reg_c = u64::from_str(&register_regex.captures(lines[2].as_str()).unwrap()[1]).unwrap();
+    let program: Vec<u64> = program_regex.captures(lines[4].as_str()).unwrap()[1]
+        .split(',')
+        .map(|x| x.parse().unwrap())
+        .collect();
+    let mut out_stream = run_virtual_machine(reg_a, reg_b, reg_c, &program);
+    println!(
+        "Part 1 - {}",
+        out_stream
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>()
+            .join(",")
+    );
+    let mut reg_a_cand: u64 = 0;
+    loop {
+        out_stream = run_virtual_machine(reg_a_cand, reg_b, reg_c, &program);
+        println!("{}'s iteration -  {:?}", reg_a_cand, out_stream);
+        if out_stream.eq(&program) || reg_a_cand >= 10000 {
+            break;
+        }
+        reg_a_cand = reg_a_cand + 1;
+    }
+    println!("Part 2 - {}", reg_a_cand);
+    /*
+    let mut low = 0;
+    let mut high = u64::MAX;
+    let mut mid = 0;
+    while low < high {
+        mid = (low) + (high-low) / 2;
+        out_stream = run_virtual_machine(mid, reg_b, reg_c, &program);
+        println!("{}'s iteration -  {:?}", mid, out_stream);
+        if out_stream.eq(&program) {
+            break;
+        }
+        if out_stream.len() < program.len() {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+     println!("Part 2 - {}", mid);
+     */
 }
