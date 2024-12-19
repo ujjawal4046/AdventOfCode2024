@@ -1742,3 +1742,43 @@ pub fn day18() {
         }
     }
 }
+
+pub fn day19() {
+    let lines = read_file("day19.txt");
+    let atoms: HashMap<&str, bool> =
+        HashMap::from_iter(lines[0].split(',').map(|x| x.trim()).map(|x| (x, true)));
+    let mut molecules: HashMap<&str, u64>  = HashMap::new();
+    let mut part_1_ans = 0;
+    let mut part_2_ans = 0;
+    for i in 2..lines.len() {
+        let count = can_be_designed(&atoms, &mut molecules, lines[i].as_str());
+        if count >  0 {
+            //println!("Checking for {}", lines[i]);
+            part_1_ans = part_1_ans + 1;
+        }
+        part_2_ans = part_2_ans + count;
+    }
+    println!("Part 1 - {}", part_1_ans);
+    println!("Part 2 - {}", part_2_ans);
+}
+
+fn can_be_designed<'a>(atoms: &HashMap<&str, bool>, molecules: &mut HashMap<&'a str, u64>, candidate: &'a str) -> u64 {
+    if candidate.is_empty() {
+        return 1;
+    }
+    if molecules.contains_key(candidate) {
+        return molecules[candidate];
+    }
+    if atoms.contains_key(candidate) {
+        molecules.insert(candidate,1);
+    } else {
+        molecules.insert(candidate, 0);
+    }
+    for i in 1..candidate.len() {
+        if atoms.contains_key(&candidate[0..i]) {
+            *molecules.get_mut(candidate).unwrap() +=  can_be_designed(atoms, molecules, &candidate[i..]);
+        }
+    }
+    //println!("{} {}", candidate, molecules[candidate]);
+    molecules[candidate]
+}
