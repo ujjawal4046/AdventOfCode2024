@@ -1747,12 +1747,12 @@ pub fn day19() {
     let lines = read_file("day19.txt");
     let atoms: HashMap<&str, bool> =
         HashMap::from_iter(lines[0].split(',').map(|x| x.trim()).map(|x| (x, true)));
-    let mut molecules: HashMap<&str, u64>  = HashMap::new();
+    let mut molecules: HashMap<&str, u64> = HashMap::new();
     let mut part_1_ans = 0;
     let mut part_2_ans = 0;
     for i in 2..lines.len() {
         let count = can_be_designed(&atoms, &mut molecules, lines[i].as_str());
-        if count >  0 {
+        if count > 0 {
             //println!("Checking for {}", lines[i]);
             part_1_ans = part_1_ans + 1;
         }
@@ -1762,7 +1762,11 @@ pub fn day19() {
     println!("Part 2 - {}", part_2_ans);
 }
 
-fn can_be_designed<'a>(atoms: &HashMap<&str, bool>, molecules: &mut HashMap<&'a str, u64>, candidate: &'a str) -> u64 {
+fn can_be_designed<'a>(
+    atoms: &HashMap<&str, bool>,
+    molecules: &mut HashMap<&'a str, u64>,
+    candidate: &'a str,
+) -> u64 {
     if candidate.is_empty() {
         return 1;
     }
@@ -1770,15 +1774,250 @@ fn can_be_designed<'a>(atoms: &HashMap<&str, bool>, molecules: &mut HashMap<&'a 
         return molecules[candidate];
     }
     if atoms.contains_key(candidate) {
-        molecules.insert(candidate,1);
+        molecules.insert(candidate, 1);
     } else {
         molecules.insert(candidate, 0);
     }
     for i in 1..candidate.len() {
         if atoms.contains_key(&candidate[0..i]) {
-            *molecules.get_mut(candidate).unwrap() +=  can_be_designed(atoms, molecules, &candidate[i..]);
+            *molecules.get_mut(candidate).unwrap() +=
+                can_be_designed(atoms, molecules, &candidate[i..]);
         }
     }
     //println!("{} {}", candidate, molecules[candidate]);
     molecules[candidate]
+}
+
+fn min_picoseconds(matrix: &Vec<Vec<char>>, s: (usize, usize), e: (usize, usize)) -> u64 {
+    let mut q = VecDeque::new();
+    let (n, m) = (matrix.len() as i32, matrix[0].len() as i32);
+    q.push_back((s.0 as i32, s.1 as i32));
+    let mut dist = HashMap::new();
+    dist.insert(s, 0);
+    let xd = [-1, 1, 0, 0];
+    let yd = [0, 0, -1, 1];
+    while !q.is_empty() {
+        let v = q.pop_front().unwrap();
+        if v.eq(&(e.0 as i32, e.1 as i32)) {
+            break;
+        }
+        for i in 0..4 {
+            let (x_, y_) = (v.0 + xd[i], v.1 + yd[i]);
+            if x_ >= 0
+                && x_ < n
+                && y_ >= 0
+                && y_ < m
+                && !matrix[x_ as usize][y_ as usize].eq(&'#')
+                && !dist.contains_key(&(x_ as usize, y_ as usize))
+            {
+                dist.insert(
+                    (x_ as usize, y_ as usize),
+                    dist[&(v.0 as usize, v.1 as usize)] + 1,
+                );
+                q.push_back((x_, y_));
+            }
+        }
+    }
+    dist[&e]
+}
+
+pub fn day20() {
+    let mut matrix: Vec<Vec<char>> = vec![];
+    let (mut s, mut e) = ((0, 0), (0, 0));
+    for l in read_file("day20.txt") {
+        matrix.push(l.chars().collect());
+        if let Some(p) = matrix
+            .last()
+            .unwrap()
+            .iter()
+            .position(|x| x.eq(&'S') || x.eq(&'E'))
+        {
+            if matrix.last().unwrap()[p].eq(&'S') {
+                s = (matrix.len() - 1, p);
+            } else {
+                e = (matrix.len() - 1, p);
+            }
+        }
+    }
+    let (n, m) = (matrix.len(), matrix[0].len());
+    //println!("{:?} {:?}", s, e);
+    let original_time = min_picoseconds(&matrix, s, e);
+    println!("Original time - {}", original_time);
+    let mut part_1_ans = 0;
+    for i in 0..n {
+        for j in 0..m {
+            if matrix[i][j].eq(&'#') {
+                matrix[i][j] = '.';
+                let cur_time = min_picoseconds(&matrix, s, e);
+                println!("New time with {},{} is {}", i, j, cur_time);
+                if cur_time < original_time && original_time - cur_time >= 100 {
+                    part_1_ans = part_1_ans + 1;
+                }
+                matrix[i][j] = '#';
+            }
+        }
+    }
+
+    println!("Part 1 - {}", part_1_ans);
+}
+
+fn perform_binary_op(op: &str, v1: &u64, v2: &u64) -> u64 {
+    let  ans ;
+    match op {
+        "AND" => {
+            ans = v1 & v2
+        }
+        "OR" => {
+            ans = v1 | v2
+        }
+        "XOR" => {
+            ans = v1 ^ v2
+        }
+        _ => {
+            panic!("Unexpected op: {}", op);
+        }
+    }
+    //println!("{} {} {}: {}", v1, op, v2, ans);
+    ans
+}
+
+fn update_graph<'a >(adj_list: &mut HashMap<&'a str, Vec<&'a str>>, u: &'a str, v: &'a str) {
+    match adj_list.get_mut(u) {
+        Some(list) => {
+            list.push(v);
+        }
+        None => {
+            let list = vec![v];
+            adj_list.insert(u, list);
+
+        }
+    }
+}
+
+pub fn day23() {
+    let lines = read_file("day23.txt");
+    let link_pattern = Regex::new("([[:alnum:]]+)-([[:alnum:]]+)").unwrap();
+    let mut adj_list:HashMap<&str, Vec<&str>> = HashMap::new();
+    for i in 0..lines.len() {
+        let c = link_pattern.captures(lines[i].as_str()).unwrap();
+        let (u, v) = (c.get(1).unwrap().as_str(), c.get(2).unwrap().as_str());
+        //println!("{} {}", u, v);
+        update_graph(&mut adj_list, u, v);
+        update_graph(&mut adj_list, v, u);
+    }
+    println!("{:?}", adj_list);
+    let mut unique_tuple = HashSet::new();
+    for k in adj_list.keys() {
+        if k.starts_with('t') {
+            println!("{}", k);
+            let neighbours = adj_list.get(k).unwrap();
+            for i in 0..neighbours.len() {
+                for j in i+1..neighbours.len() {
+                    if adj_list.get(neighbours[i]).unwrap().contains(&neighbours[j]) {
+                        let mut tuple = [k, neighbours[i], neighbours[j]];
+                        tuple.sort();
+                        unique_tuple.insert(tuple);
+                    }
+                }
+            }
+        }
+    }
+    println!("{:?}", unique_tuple);
+    println!("Part 1 - {}", unique_tuple.len());
+}
+
+pub fn day24() {
+    let lines = read_file("day24.txt");
+    let reg_pattern = Regex::new("([[:alnum:]]+): ([0-9]+)").unwrap();
+    let mut reg_values = HashMap::new();
+    let op_pattern =
+        Regex::new("([[:alnum:]]+) ([[:alnum:]]+) ([[:alnum:]]+) -> ([[:alnum:]]+)").unwrap();
+    let mut pending_ops = HashSet::new();
+    for i in 0..lines.len() {
+        let l_str = lines[i].as_str();
+        match reg_pattern.captures(l_str) {
+            Some(c) => {
+                let (k, v) = (
+                    c.get(1).unwrap().as_str(),
+                    c.get(2).unwrap().as_str().parse::<u64>().unwrap(),
+                );
+                reg_values.insert(k, v);
+            }
+            None => {}
+        }
+        match op_pattern.captures(l_str) {
+            Some(c) => {
+                let (op1, op, op2, res) = (
+                    c.get(1).unwrap().as_str(),
+                    c.get(2).unwrap().as_str(),
+                    c.get(3).unwrap().as_str(),
+                    c.get(4).unwrap().as_str(),
+                );
+                pending_ops.insert((op1, op, op2, res));
+            }
+            None => {}
+        }
+    }
+    while !pending_ops.is_empty() {
+        pending_ops.retain(|ins| {
+            let (op1, op, op2, res) = (ins.0, ins.1, ins.2, ins.3);
+            if reg_values.contains_key(op1) && reg_values.contains_key(op2) {
+                let (v1, v2) = (reg_values.get(op1).unwrap(), reg_values.get(op2).unwrap());
+                reg_values.insert(res, perform_binary_op(op, v1, v2));
+                false
+            } else {
+                true
+            }
+        });
+    }
+    let mut counter = 99;
+    let mut part_1_ans: u64 = 0;
+    while counter >= 0 {
+        let k = format!("z{:02}", counter);
+        if reg_values.contains_key(k.as_str()){
+            let v = reg_values.get(k.as_str()).unwrap();
+            //println!("{} {}", k, v);
+            part_1_ans = 2 * part_1_ans + v;
+        }
+        counter = counter - 1;
+    }
+    println!("Part 1 - {}", part_1_ans);
+
+}
+
+pub fn day25() {
+    let lines = read_file("day25.txt");
+    let (mut locks, mut keys) = (HashSet::new(), HashSet::new());
+    let mut i = 0;
+    while i < lines.len() {
+        let mut v = vec![-1; 5];
+        let mut is_lock = false;
+        if lines[i].contains('#') {
+            is_lock = true;
+        }
+        for l in lines[i..i + 7].iter() {
+            for c in l.chars().enumerate() {
+                if c.1.eq(&'#') {
+                    v[c.0] = v[c.0] + 1;
+                }
+            }
+        }
+        if is_lock {
+            locks.insert(v);
+        } else {
+            keys.insert(v);
+        }
+        i = i + 8;
+    }
+    //println!("{:?}", locks);
+    //println!("{:?}", keys);
+    let mut part_1_ans = 0;
+    for l in locks {
+        for k in keys.iter() {
+            if l.iter().zip(k.iter()).all(|(x, y)| x + y <= 5) {
+                part_1_ans = part_1_ans + 1;
+            }
+        }
+    }
+    println!("Part 1 - {}", part_1_ans);
 }
